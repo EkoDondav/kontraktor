@@ -27,7 +27,9 @@ import org.nustaq.kontraktor.util.Log;
 import org.nustaq.serialization.FSTConfiguration;
 import org.nustaq.serialization.util.FSTUtil;
 
+import java.io.IOError;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -531,13 +533,20 @@ public abstract class RemoteRegistry implements RemoteConnection {
                             writeObject(chan, rce);
                             sumQueued++;
                             hadAnyMsg = true;
-                        } catch (Exception ex) {
-                            chan.setLastError(ex);
-                            if (toRemove == null)
-                                toRemove = new ArrayList();
-                            toRemove.add(remoteActor);
-                            remoteActor.__stop();
-                            Log.Lg.infoLong(this, ex, "connection closed");
+                        } catch (Throwable ex) {
+                            if ( ex instanceof InvocationTargetException && ((InvocationTargetException) ex).getTargetException() != null ) {
+                                ex = ((InvocationTargetException) ex).getTargetException();
+                            }
+                            if ( ex instanceof IOError || ex instanceof IOException ) {
+                                chan.setLastError(ex);
+                                if (toRemove == null)
+                                    toRemove = new ArrayList();
+                                toRemove.add(remoteActor);
+                                remoteActor.__stop();
+                                Log.Lg.infoLong(this, ex, "connection closed");
+                            } else {
+                                Log.Error(this,ex);
+                            }
                             break;
                         }
                     }
